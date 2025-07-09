@@ -13,7 +13,7 @@ class User(Base):
     savings_goal = Column(Text, nullable=False)
     target_amount = Column(DECIMAL(10, 2), nullable=False)
     target_date = Column(Date, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow())
+    created_at = Column(DateTime, default=lambda : datetime.utcnow())
 
     # Relationships
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
