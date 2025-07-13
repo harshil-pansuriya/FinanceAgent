@@ -2,75 +2,55 @@ from crewai import Agent, Task, Crew
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from langchain.output_parsers import PydanticOutputParser
-from schemas.transaction import TransactionParsed
-from services.user_service import UserService
-from config.setting import Config
-from config.logger import logger
-from prompts.prompt import TRANSACTION_PARSE_PROMPT, SEARCH_PARSE_PROMPT
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Dict, Optional
 import json
 import re
+from config.setting import Config
+from config.logger import logger
+from prompts.prompt import TRANSACTION_PARSE_PROMPT,TRANSACTION_CATEGORIZATION_PROMPT, SEARCH_PARSE_PROMPT
+from services.user_service import UserService
+from schemas.transaction import TransactionParsed
 
 class TransactionParserAgent:
     def __init__(self):
-        # Initialize Gemini LLM
-        try:
-            self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro",
-                google_api_key=Config.GEMINI_API_KEY,
-                temperature=0.1
-            )
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini model: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to initialize AI model")
+        self.crewai_llm = ChatGoogleGenerativeAI(
+            model="gemini-1.5-flash",
+            google_api_key=Config.gemini_api_key,
+            temperature=0.3
+        )
 
-        # Define CrewAI agent for transaction parsing and categorization
+        self.crewai_llm.model = "gemini/gemini-1.5-flash"
+        
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-1.5-flash", 
+            google_api_key=Config.gemini_api_key,
+            temperature=0.3
+        )
+        # CrewAI agent for transaction parsing and categorization
         self.transaction_agent = Agent(
             role="Transaction Parser and Categorizer",
             goal="Extract amount, merchant, date, and category from natural language transaction input",
             backstory="Expert at parsing and categorizing financial transactions using user-specific preferences",
-            llm=self.llm,
-            verbose=False
+            llm=self.crewai_llm,
+            verbose=False,
+            allow_delegation=True,  
+            max_retry_limit=1 
         )
 
         # Initialize Crew
         self.crew = Crew(
             agents=[self.transaction_agent],
             tasks=[],
-            verbose=False
+            verbose=False,
         )
 
         # Transaction and categorization prompt
         self.transaction_prompt = PromptTemplate(
             input_variables=["input_text", "current_date", "categories"],
-            template=TRANSACTION_PARSE_PROMPT + """
-
-            Additionally, categorize the transaction based on the provided details and user-defined categories. Include the category in the JSON output.
-
-            User-Defined Categories: {categories}
-
-            Rules for Categorization:
-            - Match the transaction to one of the user-defined categories based on merchant and description.
-            - Use keywords in the description or merchant (e.g., "groceries", "dinner", "Starbucks" → "Food"; "electricity", "bill" → "Bills").
-            - If no clear match, use "Other".
-            - Include the category in the JSON output.
-
-            Examples:
-            - Input: "bought groceries of 300$ today from walmart", Categories: ["Food", "Transportation", "Entertainment", "Shopping", "Bills"]
-              → {{"amount": 300.00, "merchant": "walmart", "transaction_date": "{current_date}", "category": "Food"}}
-            - Input: "spent 50 bucks on coffee yesterday", Categories: ["Food", "Transportation", "Entertainment", "Shopping", "Bills"]
-              → {{"amount": 50.00, "merchant": null, "transaction_date": "YYYY-MM-DD", "category": "Food"}} (day before {current_date})
-            - Input: "paid 100$ for bills on July 5th 2025", Categories: ["Food", "Transportation", "Entertainment", "Shopping", "Bills"]
-              → {{"amount": 100.00, "merchant": null, "transaction_date": "2025-07-05", "category": "Bills"}}
-            - Input: "took a ride to downtown for 25$", Categories: ["Food", "Travel", "Leisure"]
-              → {{"amount": 25.00, "merchant": null, "transaction_date": "{current_date}", "category": "Travel"}}
-
-            Output:
-            """
+            template=TRANSACTION_PARSE_PROMPT + TRANSACTION_CATEGORIZATION_PROMPT
         )
 
         # Search query prompt
@@ -79,7 +59,6 @@ class TransactionParserAgent:
             template=SEARCH_PARSE_PROMPT
         )
 
-        # Pydantic parser for transaction output
         self.transaction_parser = PydanticOutputParser(pydantic_object=TransactionParsed)
 
     async def parse_transaction(self, input_text: str, user_id: str, db: AsyncSession) -> Optional[TransactionParsed]:
@@ -107,12 +86,10 @@ class TransactionParserAgent:
             self.crew.tasks = [task]
             result = await self.crew.kickoff_async()
 
-            # Extract JSON
             json_data = self._extract_json(str(result))
             if not json_data:
                 return None
 
-            # Validate category
             category = json_data.get("category", "Other")
             if category not in categories:
                 logger.warning(f"Invalid category '{category}' for transaction: {input_text}. Defaulting to 'Other'.")
@@ -150,7 +127,6 @@ class TransactionParserAgent:
             return {}
 
     def _extract_json(self, text: str) -> Optional[Dict]:
-        """Extract JSON from text response"""
         try:
             json_match = re.search(r'\{[^{}]*\}', text)
             if json_match:
@@ -160,7 +136,6 @@ class TransactionParserAgent:
             return None
 
     def _clean_filters(self, filters: Dict) -> Dict:
-        """Clean and validate search filters"""
         valid_keys = {"category", "date", "start_date", "end_date", "min_amount", "max_amount"}
         cleaned = {k: v for k, v in filters.items() if k in valid_keys}
 

@@ -1,21 +1,24 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from fastapi import HTTPException, status
-from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
-from database.models import Transaction
-from agents.transaction_parser import TransactionParserAgent
-from services.user_service import UserService
-from config.logger import logger
 from typing import List
 from decimal import Decimal
 from datetime import date
+from config.logger import logger
+from database.models import Transaction
+from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
+from services.user_service import UserService
+from agents.transaction_parser import TransactionParserAgent
 
 class TransactionService:
+    
+    user_service = UserService()
+    
     async def create_transaction(self, db: AsyncSession, input_data: NaturalLanguageInput) -> TransactionResponse:
         """Process natural language transaction, categorize, and store it"""
         try:
-            # Verify user exists
-            if not await UserService().user_exists(db, input_data.user_id):
+
+            if not await self.user_service.user_exists(db, input_data.user_id):
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
             # Parse and categorize natural language input
@@ -24,7 +27,6 @@ class TransactionService:
             if not parsed_data:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to parse transaction")
 
-            # Create transaction
             new_transaction = Transaction(
                 user_id=input_data.user_id,
                 amount=parsed_data.amount,
@@ -38,7 +40,7 @@ class TransactionService:
             await db.refresh(new_transaction)
 
             logger.info(f"Transaction created for user {input_data.user_id}: {parsed_data.amount} ({parsed_data.category})")
-            return TransactionResponse.from_orm(new_transaction)
+            return TransactionResponse.model_validate(new_transaction)
 
         except HTTPException:
             raise
@@ -50,17 +52,14 @@ class TransactionService:
     async def search_transactions(self, db: AsyncSession, search_data: TransactionSearch) -> List[TransactionResponse]:
         """Search transactions by category, date, or amount from natural language query"""
         try:
-            # Verify user exists
-            if not await UserService().user_exists(db, search_data.user_id):
+            if not await self.user_service.user_exists(db, search_data.user_id):
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-            # Parse search query
             parser = TransactionParserAgent()
             filters = await parser.parse_search_query(search_data.query)
             if not filters:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to parse search query")
 
-            # Build query
             query = select(Transaction).filter_by(user_id=search_data.user_id)
             if filters.get("category"):
                 query = query.filter(Transaction.category.ilike(f"%{filters['category']}%"))
@@ -81,7 +80,7 @@ class TransactionService:
             transactions = result.scalars().all()
 
             logger.info(f"Found {len(transactions)} transactions for user {search_data.user_id}")
-            return [TransactionResponse.from_orm(t) for t in transactions]
+            return [TransactionResponse.model_validate(t) for t in transactions]
 
         except HTTPException:
             raise
@@ -92,7 +91,7 @@ class TransactionService:
     async def get_total_spent_by_period(self, db: AsyncSession, user_id: str, start_date: date, end_date: date) -> Decimal:
         """Calculate total spent in a period for analysis"""
         try:
-            if not await UserService().user_exists(db, user_id):
+            if not await self.user_service.user_exists(db, user_id):
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
             result = await db.execute(

@@ -1,19 +1,18 @@
 from crewai import Crew, Process
-from agents.transaction_parser import TransactionParserAgent
-from agents.analysis_agent import AnalysisAgent
-from services.transaction_service import TransactionService
-from services.analysis import AnalysisService
-from services.user_service import UserService
-from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
-from schemas.analysis import FinancialInsights
 from sqlalchemy.ext.asyncio import AsyncSession
-from config.logger import logger
 from fastapi import HTTPException, status
 from typing import List
+from config.logger import logger
+from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
+from schemas.analysis import FinancialInsights
+from services.user_service import UserService
+from services.transaction_service import TransactionService
+from services.analysis import AnalysisService
+from agents.transaction_parser import TransactionParserAgent
+from agents.analysis_agent import AnalysisAgent
 
 class FinanceWorkflow:
     def __init__(self):
-        # Initialize agents
         self.transaction_agent = TransactionParserAgent()
         self.analysis_agent = AnalysisAgent()
         
@@ -34,7 +33,6 @@ class FinanceWorkflow:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
             result = await self.transaction_service.create_transaction(db, input_data)
-            
             logger.info(f"Workflow: Processed transaction for user {input_data.user_id}: {input_data.text}")
             return result
 
@@ -51,7 +49,6 @@ class FinanceWorkflow:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
             results = await self.transaction_service.search_transactions(db, search_data)
-            
             logger.info(f"Workflow: Processed search query for user {search_data.user_id}: {search_data.query}")
             return results
 
@@ -68,7 +65,6 @@ class FinanceWorkflow:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
             insights = await self.analysis_service.get_financial_insights(db, user_id, period)
-            
             logger.info(f"Workflow: Generated financial insights for user {user_id} for period {period}")
             return insights
 

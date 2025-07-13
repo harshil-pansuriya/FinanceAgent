@@ -1,11 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 class Settings(BaseSettings):
     
     groq_api_key: str
     gemini_api_key: str
-    pinecone_api_key: str
-    pinecone_index: str 
+    database_url: str
     
     model_config= SettingsConfigDict(
         env_file=".env",

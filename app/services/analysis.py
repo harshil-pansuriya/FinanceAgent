@@ -1,17 +1,17 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from fastapi import HTTPException, status
-from schemas.analysis import FinancialInsights, SpendingAnalysis, CategorySpending, Recommendation
-from schemas.user import UserResponse
-from database.models import Transaction
-from services.user_service import UserService
-from services.transaction_service import TransactionService
-from agents.analysis_agent import AnalysisAgent
-from config.logger import logger
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from typing import List, Dict
+from config.logger import logger
+from database.models import Transaction
+from schemas.user import UserResponse
+from schemas.analysis import FinancialInsights, SpendingAnalysis, CategorySpending, Recommendation
+from services.user_service import UserService
+from services.transaction_service import TransactionService
+from agents.analysis_agent import AnalysisAgent
 
 class AnalysisService:
     async def get_financial_insights(self, db: AsyncSession, user_id: str, period: str = "this month") -> FinancialInsights:
@@ -36,21 +36,17 @@ class AnalysisService:
             category_spending = await self._get_category_spending(db, user_id, start_date, end_date)
             # Calculate total spent
             total_spent = await TransactionService().get_total_spent_by_period(db, user_id, start_date, end_date)
-            # Get monthly trends (compare with previous months)
-            monthly_trend = await self._get_monthly_trend(db, user_id, today, 3)  # Get trend for last 3 months
+            # Get monthly trends
+            monthly_trend = await self._get_monthly_trend(db, user_id, today, 3)  
             # Get top merchants
             top_merchants = await self._get_top_merchants(db, user_id, start_date, end_date)
             # Calculate goal progress
             goal_progress = await self._calculate_goal_progress(user_response, total_spent, today)
             # Budget vs actual comparison
             budget_comparison = await self._budget_comparison(user_response.monthly_income, total_spent)
-            # Prepare spending analysis
-            spending_analysis = SpendingAnalysis(
-                user_id=user_id,
-                analysis_period=period,
-                total_spent=total_spent,
-                categories=category_spending
-            )
+
+            spending_analysis = SpendingAnalysis(user_id=user_id, analysis_period=period,
+                                    total_spent=total_spent, categories=category_spending )
 
             analysis_agent = AnalysisAgent()
             recommendations = await analysis_agent.generate_recommendations(
@@ -151,7 +147,7 @@ class AnalysisService:
     async def _calculate_goal_progress(self, user: UserResponse, total_spent: Decimal, today: date) -> Dict:
         """Calculate savings goal progress"""
         months_to_goal = (user.target_date - today).days / 30.0
-        current_savings = user.monthly_income - total_spent  # Simplified assumption
+        current_savings = user.monthly_income - total_spent 
         progress_percentage = min((current_savings / user.target_amount * 100).quantize(Decimal('0.01')), Decimal('100.00'))
         return {
             "target_savings": user.target_amount,
@@ -161,7 +157,6 @@ class AnalysisService:
         }
 
     async def _budget_comparison(self, monthly_income: Decimal, total_spent: Decimal) -> Dict:
-        """Compare spending to monthly income"""
         spending_ratio = (total_spent / monthly_income * 100).quantize(Decimal('0.01')) if monthly_income > 0 else Decimal('0.00')
         return {
             "monthly_income": monthly_income,

@@ -2,27 +2,23 @@ from crewai import Agent, Task, Crew
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from sqlalchemy.ext.asyncio import AsyncSession
-from schemas.analysis import Recommendation, SpendingAnalysis
-from config.setting import Config
-from config.logger import logger
-from prompts.prompt import RECOMMENDATION_PROMPT
-from fastapi import HTTPException, status
 from typing import List, Dict
 import json
 import re
+from config.logger import logger
+from config.setting import Config
+from schemas.analysis import Recommendation, SpendingAnalysis
+from prompts.prompt import RECOMMENDATION_PROMPT
 
 class AnalysisAgent:
     def __init__(self):
-        try:
-            self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro",
-                google_api_key=Config.GEMINI_API_KEY,
-                temperature=0.3  
-            )
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini model: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to initialize AI model")
-
+        
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-1.5-flash",  
+            google_api_key=Config.gemini_api_key,
+            temperature=0.3
+        )
+        self.llm.model="gemini/gemini-1.5-flash"
         self.agent = Agent(
             role="Financial Analyst",
             goal="Generate personalized financial recommendations based on spending analysis and user goals",
@@ -41,17 +37,15 @@ class AnalysisAgent:
             template=RECOMMENDATION_PROMPT
         )
 
-    async def generate_recommendations(
-        self,
+    async def generate_recommendations(self,
         user_id: str,
         spending_analysis: SpendingAnalysis,
         monthly_trend: str,
         goal_progress: Dict,
-        budget_comparison: Dict,
+        budget_comparison: Dict, 
         top_merchants: List[Dict],
-        db: AsyncSession = None  
-    ) -> List[Recommendation]:
-        """Generate financial recommendations using CrewAI"""
+        db: AsyncSession = None   ) -> List[Recommendation]:
+        """Generate financial recommendations"""
         try:
             spending_analysis_json = json.dumps(spending_analysis.dict(), default=str)
             goal_progress_json = json.dumps(goal_progress, default=str)

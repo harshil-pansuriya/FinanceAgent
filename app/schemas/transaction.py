@@ -9,7 +9,7 @@ class NaturalLanguageInput(BaseModel):
     user_id: str = Field(..., max_length=20)
     text: str = Field(..., min_length=10, description="Natural language transaction: 'bought groceries of 300$ today from supermarket'")
 
-# Parsed transaction (after AI processing)
+# Parsed transaction
 class TransactionParsed(BaseModel):
     amount: Decimal
     merchant: Optional[str]

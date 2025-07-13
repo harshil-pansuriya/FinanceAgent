@@ -3,16 +3,15 @@ from decimal import Decimal
 from typing import List
 from datetime import datetime
 
-# Category spending summary
 class CategorySpending(BaseModel):
     category: str
     total_spent: Decimal
     average_spend: Decimal
 
-# Analysis response (after 1 week/month)
+# Analysis response
 class SpendingAnalysis(BaseModel):
     user_id: str
-    analysis_period: str  # "1 week", "1 month"
+    analysis_period: str 
     total_spent: Decimal
     categories: List[CategorySpending]
 
@@ -20,7 +19,7 @@ class SpendingAnalysis(BaseModel):
 class Recommendation(BaseModel):
     text: str
     category: str
-    priority: str  # "high", "medium", "low"
+    priority: str
 
 # Complete financial insights
 class FinancialInsights(BaseModel):

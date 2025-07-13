@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, List
 from schemas.user import UserRegister, UserLogin, UserResponse, UserPreferences
 from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
 from schemas.analysis import FinancialInsights
+from database.database import get_db
 from services.user_service import UserService
 from services.workflow import FinanceWorkflow
-from database.database import get_db
-from typing import Dict, List
 
 router= APIRouter(prefix="/api", tags=['Finance'])
 
@@ -16,7 +16,7 @@ user_service = UserService()
 @router.post("/register", response_model=UserResponse)
 async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     try:
-        result= await UserService().register_user(db, user_data) 
+        result= await user_service.register_user(db, user_data) 
         return result
     except HTTPException as e:
          raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -43,7 +43,7 @@ async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="User not found")
     return UserResponse.model_validate(user)
 
-router.post("/transactions", response_model= TransactionResponse)
+@router.post("/transactions", response_model= TransactionResponse)
 async def create_transaction(input_data: NaturalLanguageInput, db: AsyncSession= Depends(get_db)):
     return await workflow.process_transaction(db, input_data)
 

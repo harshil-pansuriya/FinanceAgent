@@ -3,7 +3,7 @@ from decimal import Decimal
 from datetime import date, datetime
 from typing import Dict, Any
 
-# For new user registration (3 questions)
+# For new user registration- 3 questions
 class UserRegister(BaseModel):
     monthly_income: Decimal = Field(..., gt=0, decimal_places=2)
     savings_goal: str = Field(..., min_length=5)
@@ -26,11 +26,11 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# For user preferences (optional)
+# For user preferences
 class UserPreferences(BaseModel):
     user_id: str
     preferences: Dict[str, Any]
     updated_at: datetime
-
+    
     class Config:
         from_attributes = True

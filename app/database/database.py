@@ -5,12 +5,12 @@ from config.logger import logger
 import sqlalchemy.exc
 
 engine = create_async_engine(
-    Config.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
+    Config.database_url,
     pool_size=15,
     max_overflow=20,
     pool_timeout=30,
     pool_pre_ping=True,
-    echo=Config.DEBUG
+    echo=False,
 )
 
 AsyncSessionLocal = async_sessionmaker(
