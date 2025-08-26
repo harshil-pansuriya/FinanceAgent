@@ -1,17 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import Dict, List
 from schemas.user import UserRegister, UserLogin, UserResponse, UserPreferences
 from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
 from schemas.analysis import FinancialInsights
 from database.database import get_db
 from services.user_service import UserService
-from services.workflow import FinanceWorkflow
+from services.transaction_service import TransactionService
+from services.analysis import AnalysisService
 
 router= APIRouter(prefix="/api", tags=['Finance'])
 
-workflow = FinanceWorkflow()
 user_service = UserService()
+transaction_service = TransactionService()
+analysis_service = AnalysisService()
 
 @router.post("/register", response_model=UserResponse)
 async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
@@ -19,7 +22,7 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
         result= await user_service.register_user(db, user_data) 
         return result
     except HTTPException as e:
-         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.post("/login", response_model= UserResponse)
 async def login_user(login_data: UserLogin, db: AsyncSession = Depends(get_db)) :
@@ -45,14 +48,34 @@ async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/transactions", response_model= TransactionResponse)
 async def create_transaction(input_data: NaturalLanguageInput, db: AsyncSession= Depends(get_db)):
-    return await workflow.process_transaction(db, input_data)
+    return await transaction_service.create_transaction(db, input_data)
+
+@router.get("/transactions/{user_id}", response_model= List[TransactionResponse])
+async def get_transactions(user_id: str, db: AsyncSession = Depends(get_db)):
+    try:
+        from database.models import Transaction
+        
+        if not await user_service.user_exists(db, user_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        
+        result = await db.execute(
+            select(Transaction)
+            .filter_by(user_id=user_id)
+            .order_by(Transaction.transaction_date.desc())
+        )
+        transactions = result.scalars().all()
+        return [TransactionResponse.model_validate(t) for t in transactions]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to fetch transactions")
 
 @router.get("/search", response_model= List[TransactionResponse])
 async def search_transactions(user_id: str, query: str, db: AsyncSession = Depends(get_db)):
     search_data = TransactionSearch(user_id=user_id, query=query)
-    return await workflow.search_transactions(db, search_data)
+    return await transaction_service.search_transactions(db, search_data)
 
 @router.get("/insights/{user_id}", response_model= FinancialInsights)
 async def get_financial_insights(user_id: str, period: str = "this month", db: AsyncSession = Depends(get_db)):
-    
-    return await workflow.generate_financial_insights(db, user_id, period)
+
+    return await analysis_service.get_financial_insights(db, user_id, period)

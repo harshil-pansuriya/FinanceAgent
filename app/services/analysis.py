@@ -11,7 +11,7 @@ from schemas.user import UserResponse
 from schemas.analysis import FinancialInsights, SpendingAnalysis, CategorySpending, Recommendation
 from services.user_service import UserService
 from services.transaction_service import TransactionService
-from agents.analysis_agent import AnalysisAgent
+from agents.finance_crew import FinanceCrew 
 
 class AnalysisService:
     async def get_financial_insights(self, db: AsyncSession, user_id: str, period: str = "this month") -> FinancialInsights:
@@ -48,8 +48,8 @@ class AnalysisService:
             spending_analysis = SpendingAnalysis(user_id=user_id, analysis_period=period,
                                     total_spent=total_spent, categories=category_spending )
 
-            analysis_agent = AnalysisAgent()
-            recommendations = await analysis_agent.generate_recommendations(
+            finance_crew= FinanceCrew()
+            recommendations = await finance_crew.generate_recommendations(
                 user_id=user_id,
                 spending_analysis=spending_analysis,
                 monthly_trend=monthly_trend,

@@ -8,7 +8,7 @@ from config.logger import logger
 from database.models import Transaction
 from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
 from services.user_service import UserService
-from agents.transaction_parser import TransactionParserAgent
+from agents.finance_crew import FinanceCrew 
 
 class TransactionService:
     
@@ -22,8 +22,8 @@ class TransactionService:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
             # Parse and categorize natural language input
-            parser = TransactionParserAgent()
-            parsed_data = await parser.parse_transaction(input_data.text, input_data.user_id, db)
+            finance_crew = FinanceCrew()
+            parsed_data = await finance_crew.parse_transaction(input_data.text, input_data.user_id, db)
             if not parsed_data:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to parse transaction")
 
@@ -55,8 +55,8 @@ class TransactionService:
             if not await self.user_service.user_exists(db, search_data.user_id):
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-            parser = TransactionParserAgent()
-            filters = await parser.parse_search_query(search_data.query)
+            finance_crew= FinanceCrew()
+            filters = await finance_crew.parse_search_query(search_data.query)
             if not filters:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to parse search query")
 

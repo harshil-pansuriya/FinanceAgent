@@ -6,8 +6,8 @@ import sqlalchemy.exc
 
 engine = create_async_engine(
     Config.database_url,
-    pool_size=15,
-    max_overflow=20,
+    pool_size=10,
+    max_overflow=15,
     pool_timeout=30,
     pool_pre_ping=True,
     echo=False,
