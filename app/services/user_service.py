@@ -77,6 +77,7 @@ class UserService:
             logger.error(f"Error fetching user {user_id}: {e}")
             raise
     
+    """
     async def get_user_preferences(self, db: AsyncSession, user_id: str) -> Optional[UserPreferences]:
         try:
             result = await db.execute(
@@ -90,6 +91,7 @@ class UserService:
         except Exception as e:
             logger.error(f"Error fetching preferences for user {user_id}: {e}")
             raise
+    
     
     async def update_user_preferences(self, db: AsyncSession, user_id: str, preferences_data: dict) -> UserPreferences:
         try:
@@ -116,7 +118,7 @@ class UserService:
             await db.rollback()
             logger.error(f"Error updating preferences for user {user_id}: {e}")
             raise
-        
+    """
     async def user_exists(self, db: AsyncSession, user_id: str) -> bool:
         try:
             user = await self.get_user_by_id(db, user_id)

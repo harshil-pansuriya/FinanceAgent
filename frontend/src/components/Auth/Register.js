@@ -25,6 +25,15 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Prevent submission if target_date is in the past
+        const todayStr = new Date().toISOString().split('T')[0];
+        const isPastDate = formData.target_date && new Date(formData.target_date) < new Date(todayStr);
+        if (isPastDate) {
+            // Do not submit; UI already shows an error message conditionally
+            return;
+        }
+
         try {
             const userData = {
                 monthly_income: parseFloat(formData.monthly_income),
@@ -51,6 +60,11 @@ const Register = () => {
                 </div>
         
                 {error && <ErrorMessage message={error} />}
+        
+                {/* Client-side validation for past target date */}
+                {formData.target_date && new Date(formData.target_date) < new Date(new Date().toISOString().split('T')[0]) && (
+                    <ErrorMessage message="Target date cannot be in the past" />
+                )}
         
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="form-group">
@@ -96,7 +110,7 @@ const Register = () => {
                             step="100"
                             min="0"
                             required
-                            placeholder="e.g., 20000"
+                            placeholder="e.g., 10000"
                         />
                     </div>
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthContext } from '../../context/AuthContext';
-import { transactionAPI, authAPI } from '../../services/api';
+import { transactionAPI } from '../../services/api';
 import { formatDate, getCategoryIcon } from '../../utils/helpers';
 import Loader from '../Common/Loader';
 import ErrorMessage from '../Common/ErrorMessage';
@@ -8,12 +8,11 @@ import ErrorMessage from '../Common/ErrorMessage';
 const TransactionList = ({ refreshTrigger }) => {
     const { user } = useAuthContext();
     const [transactions, setTransactions] = useState([]);
-    const [userData, setUserData] = useState(null);
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [sortBy, setSortBy] = useState('date');
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     const fetchTransactions = useCallback(async () => {
         if (!user?.user_id) return;
 
@@ -21,30 +20,25 @@ const TransactionList = ({ refreshTrigger }) => {
         setError(null);
 
         try {
-            // Fetch both transactions and user data
-            const [transactionsResponse, userResponse] = await Promise.all([
-                transactionAPI.getTransactions(user.user_id),
-                authAPI.getUser(user.user_id)
-            ]);
-            
+            // Fetch transactions
+            const transactionsResponse = await transactionAPI.getTransactions(user.user_id);
             setTransactions(transactionsResponse.data || []);
-            setUserData(userResponse.data || {});
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to load data');
         } finally {
             setLoading(false);
         }
-    }, [user?.user_id, refreshTrigger]);
+    }, [user?.user_id]);
 
     useEffect(() => {
         fetchTransactions();
-    }, [fetchTransactions]);
+    }, [fetchTransactions, refreshTrigger]);
 
     const getFilteredTransactions = () => {
-        let filtered = transactions;
+        const copy = [...transactions];
 
         // Sort transactions (no type filter since backend doesn't have transaction_type)
-        filtered.sort((a, b) => {
+        copy.sort((a, b) => {
             switch (sortBy) {
                 case 'date':
                     return new Date(b.transaction_date) - new Date(a.transaction_date);
@@ -57,34 +51,25 @@ const TransactionList = ({ refreshTrigger }) => {
             }
         });
 
-        return filtered;
+        return copy;
     };
+
+    const filteredTransactions = useMemo(getFilteredTransactions, [transactions, sortBy]);
+    
+    // Calculate total expenses from all transactions
+    const absoluteExpenses = useMemo(() => {
+        const total = filteredTransactions.reduce((sum, transaction) => {
+            const amount = parseFloat(transaction.amount);
+            return isNaN(amount) ? sum : sum + amount;
+        }, 0);
+        return Math.abs(total);
+    }, [filteredTransactions]);
 
     if (loading) return <Loader message="Loading transactions..." />;
     if (error) return <ErrorMessage message={error} />;
 
-    const filteredTransactions = getFilteredTransactions();
-    
-    // Calculate totals for summary (same as Overview component)
-    // Use monthly income from user data
-    
-    // Calculate total expenses from all transactions
-    const totalExpenses = filteredTransactions.reduce((sum, transaction) => {
-        const amount = parseFloat(transaction.amount);
-        if (!isNaN(amount)) {
-            return sum + amount; // This includes both positive and negative amounts
-        }
-        return sum;
-    }, 0);
-
-    // Since expenses are stored as negative values, totalExpenses will be negative
-    // We need the absolute value for display
-    const absoluteExpenses = Math.abs(totalExpenses);
-    
-
-
     return (
-        <div className="transaction-list">
+<div className="transaction-list">
             <div className="list-header">
                 <h3>Transaction History</h3>
                 <div className="list-controls">
@@ -134,16 +119,25 @@ const TransactionList = ({ refreshTrigger }) => {
                                     </div>
                                     <div className="transaction-info">
                                         <h4 className="transaction-category">{transaction.category}</h4>
+                                        <p className="transaction-meta">
+                                            {transaction.description ? (
+                                                <span className="transaction-description">{transaction.description}</span>
+                                            ) : null}
+                                        </p>
                                         <p className="transaction-date">
                                             {formatDate(transaction.transaction_date)}
                                         </p>
                                     </div>
-                                    <div className="transaction-amount expense">
-                                        -${Math.abs(parseFloat(transaction.amount)).toFixed(2)}
+                                    <div className="transaction-merchant-right">
+                                      {transaction.merchant ? transaction.merchant : ''}
+                                    </div>
+                                    <div className={`transaction-amount ${parseFloat(transaction.amount) < 0 ? 'expense' : 'income'}`}>
+                                        {parseFloat(transaction.amount) < 0 ? '-' : '+'}${Math.abs(parseFloat(transaction.amount)).toFixed(2)}
                                     </div>
                                 </div>
                                 
                                 <div className="transaction-details">
+                                    {/* Keep details for accessibility but minimized in classic theme */}
                                     {transaction.description && (
                                         <div className="detail-row">
                                             <span className="detail-label">Description:</span>

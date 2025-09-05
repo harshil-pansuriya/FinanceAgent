@@ -49,9 +49,8 @@ const SearchTransactions = () => {
         <div className="search-transactions">
             <div className="search-container">
                 <div className="search-header">
-                    <h3>Search Transactions</h3>
                     <p className="search-description">
-                        Use natural language to find your transactions. Ask questions like "What did I spend on food last month?"
+                        Search your transactions with Natural query
                     </p>
                 </div>
 
@@ -113,22 +112,22 @@ const SearchTransactions = () => {
                                         <div className="result-details">
                                             <div className="result-main">
                                                 <h5 className="result-category">{transaction.category}</h5>
-                                                <span className="result-amount expense">
-                                                    -${Math.abs(parseFloat(transaction.amount)).toFixed(2)}
-                                                </span>
                                             </div>
                                             <div className="result-meta">
                                                 <span className="result-date">
                                                     {formatDate(transaction.transaction_date)}
                                                 </span>
-                                                {transaction.merchant && (
-                                                    <span className="result-merchant">• {transaction.merchant}</span>
-                                                )}
                                             </div>
                                             {transaction.description && (
                                                 <p className="result-description">{transaction.description}</p>
                                             )}
                                         </div>
+                                        <div className="result-merchant-right">
+                                            {transaction.merchant ? transaction.merchant : ''}
+                                        </div>
+                                        <span className={`result-amount ${parseFloat(transaction.amount) < 0 ? 'expense' : 'income'}`}>
+                                            {parseFloat(transaction.amount) < 0 ? '-' : '+'}${Math.abs(parseFloat(transaction.amount)).toFixed(2)}
+                                        </span>
                                     </div>
                                 ))}
                                 </div>

@@ -12,6 +12,7 @@ import './styles/dashboard.css';
 import './styles/transactions.css';
 import './styles/insights.css';
 import './styles/common.css';
+import './styles/classic.css';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuthContext();

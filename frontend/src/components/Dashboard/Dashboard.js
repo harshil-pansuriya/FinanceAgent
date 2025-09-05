@@ -80,9 +80,6 @@ const Dashboard = () => {
                             <h2 className="dashboard-title">
                                 {tabs.find(tab => tab.id === activeTab)?.label}
                             </h2>
-                            <p className="dashboard-subtitle">
-                                Manage your finances with ease
-                            </p>
                         </div>
                         
                         <div className="dashboard-content-area">

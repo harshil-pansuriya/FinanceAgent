@@ -38,7 +38,8 @@ const AddTransaction = ({ onTransactionAdded }) => {
                 }, 500);
             }
             } catch (err) {
-            setError(err.response?.data?.message || 'Failed to add transaction');
+            const apiMsg = err.response?.data?.detail || err.response?.data?.message;
+            setError(apiMsg || 'Failed to add transaction');
             } finally {
             setLoading(false);
         }
@@ -73,7 +74,7 @@ const AddTransaction = ({ onTransactionAdded }) => {
                         id="transaction-input"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="e.g., I spent $25 on lunch at McDonald's today, or Received $2000 salary from work"
+                        placeholder="e.g., I spent $25 on lunch at McDonald's today or paid bills on 1st of aug"
                         rows="3"
                         required
                         disabled={loading}
@@ -106,32 +107,23 @@ const AddTransaction = ({ onTransactionAdded }) => {
                     <div className="transaction-preview">
                         <h4>Transaction Details</h4>
                         <div className="preview-card">
-                            <div className="preview-row">
-                                <span className="preview-label">Amount:</span>
-                                <span className={`preview-value ${parseFloat(parsedTransaction.amount) < 0 ? 'expense' : 'income'}`}>
-                                    {parseFloat(parsedTransaction.amount) < 0 ? '-' : '+'}${Math.abs(parseFloat(parsedTransaction.amount)).toFixed(2)}
-                                </span>
+                          <div className="preview-row">
+                            <div className="preview-left">
+                              <div className="preview-title">{parsedTransaction.category}</div>
+                              <div className="preview-sub">
+                                {formatDate(parsedTransaction.transaction_date)}
+                                {parsedTransaction.merchant ? ` · ${parsedTransaction.merchant}` : ''}
+                              </div>
                             </div>
-                            <div className="preview-row">
-                                <span className="preview-label">Category:</span>
-                                <span className="preview-value">{parsedTransaction.category}</span>
+                            <div className={`preview-amount expense`}>
+                              -${Math.abs(parseFloat(parsedTransaction.amount)).toFixed(2)}
                             </div>
+                          </div>
+                          {parsedTransaction.description && (
                             <div className="preview-row">
-                                <span className="preview-label">Date:</span>
-                                <span className="preview-value">
-                                    {formatDate(parsedTransaction.transaction_date)}
-                                </span>
+                              <div className="preview-description">{parsedTransaction.description}</div>
                             </div>
-                            <div className="preview-row">
-                                <span className="preview-label">Description:</span>
-                                <span className="preview-value">{parsedTransaction.description}</span>
-                            </div>
-                            {parsedTransaction.merchant && (
-                                <div className="preview-row">
-                                <span className="preview-label">Merchant:</span>
-                                <span className="preview-value">{parsedTransaction.merchant}</span>
-                                </div>
-                            )}
+                          )}
                         </div>
                     </div>
                 )}

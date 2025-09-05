@@ -22,8 +22,8 @@ const Charts = ({ insights }) => {
         let cumulativePercentage = 0;
         
         const colors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+            '#0f3a5f', '#146b6f', '#b88a2b', '#7a1f2a', '#5b677a',
+            '#2d5a4f', '#3b5f7a', '#d6c79a', '#7b5c8e', '#2f6f66'
         ];
 
         return (
@@ -68,6 +68,8 @@ const Charts = ({ insights }) => {
                                     />
                                 );
                             })}
+                            {/* Inner circle to create a donut hole for better text contrast */}
+                            <circle cx="100" cy="100" r="48" fill="#ffffff" stroke="#f1f5f9" strokeWidth="1" />
                         </svg>
                         <div className="pie-chart-center-small">
                             {hoveredSlice !== null ? (

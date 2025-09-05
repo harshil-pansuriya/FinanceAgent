@@ -29,6 +29,11 @@ class AnalysisService:
             elif period == "last month":
                 end_date = today.replace(day=1) - relativedelta(days=1)
                 start_date = end_date.replace(day=1)
+            elif period == "all time":
+                # Get user creation date as start
+                creation_date = user.created_at.date() if user.created_at else today.replace(day=1)
+                start_date = creation_date.replace(day=1)  # Full month from day 1
+                end_date = today
             else:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid period")
 
@@ -37,7 +42,7 @@ class AnalysisService:
             # Calculate total spent
             total_spent = await TransactionService().get_total_spent_by_period(db, user_id, start_date, end_date)
             # Get monthly trends
-            monthly_trend = await self._get_monthly_trend(db, user_id, today, 3)  
+            monthly_trend = await self._get_monthly_trend(db, user_id, today, period)  
             # Get top merchants
             top_merchants = await self._get_top_merchants(db, user_id, start_date, end_date)
             # Calculate goal progress
@@ -96,35 +101,65 @@ class AnalysisService:
         ]
         return categories
 
-    async def _get_monthly_trend(self, db: AsyncSession, user_id: str, today: date, months: int = 3) -> str:
+    async def _get_monthly_trend(self, db: AsyncSession, user_id: str, today: date, period: str) -> str:
         """Get detailed monthly trend for the past few months"""
         trend_data = []
-        
-        for i in range(months):
-            end_date = today.replace(day=1) - relativedelta(months=i) - relativedelta(days=1)
-            start_date = end_date.replace(day=1)
-            
-            month_total = await TransactionService().get_total_spent_by_period(db, user_id, start_date, end_date)
-            
-            categories = await self._get_category_spending(db, user_id, start_date, end_date)
+    
+        if period == "this month":
+            # Just current month data
+            start_date = today.replace(day=1)
+            month_total = await TransactionService().get_total_spent_by_period(db, user_id, start_date, today)
+            categories = await self._get_category_spending(db, user_id, start_date, today)
             top_categories = sorted(categories, key=lambda x: x.total_spent, reverse=True)[:3]
             
-            trend_data.append({
-                "month": start_date.strftime("%B %Y"),
-                "total_spent": str(month_total),
-                "top_categories": [
-                    f"{cat.category}: ${cat.total_spent}" for cat in top_categories
-                ]
-            })
-        
-        trend_str = "Monthly spending trends:\n"
+            return f"Current month ({start_date.strftime('%B %Y')}): ${month_total} total spending"
+            
+        elif period == "last month":
+            # Just last month data
+            end_date = today.replace(day=1) - relativedelta(days=1)
+            start_date = end_date.replace(day=1)
+            month_total = await TransactionService().get_total_spent_by_period(db, user_id, start_date, end_date)
+            
+            return f"Last month ({start_date.strftime('%B %Y')}): ${month_total} total spending"
+        elif period == "all time":
+            # Get user creation date
+            user = await UserService().get_user_by_id(db, user_id)
+            creation_date = user.created_at.date() if user.created_at else today.replace(day=1)
+            start_date = creation_date.replace(day=1)
+            # Calculate number of months from creation to now
+            months_diff = (today.year - creation_date.year) * 12 + (today.month - creation_date.month) + 1
+            months_to_show = min(months_diff, 6)  # Limit to last 6 months for performance
+            
+            for i in range(months_to_show):
+                if i == 0:
+                    # Current month (partial)
+                    start_date = today.replace(day=1)
+                    end_date = today
+                else:
+                    # Previous months
+                    end_date = today.replace(day=1) - relativedelta(months=i) - relativedelta(days=1)
+                    start_date = end_date.replace(day=1)
+
+                month_total = await TransactionService().get_total_spent_by_period(db, user_id, start_date, end_date)
+                categories = await self._get_category_spending(db, user_id, start_date, end_date)
+                top_categories = sorted(categories, key=lambda x: x.total_spent, reverse=True)[:2]
+                
+                trend_data.append({
+                    "month": start_date.strftime("%B %Y"),
+                    "total_spent": str(month_total),
+                    "top_categories": [f"{cat.category}: ${cat.total_spent}" for cat in top_categories]
+                })
+
+            # Build trend string
+        creation_month = creation_date.replace(day=1)
+        trend_str = f"Spending trends (since {creation_month.strftime('%B %Y')}):\n"
         for month in trend_data:
-            trend_str += f"- {month['month']}: ${month['total_spent']} total\n"
-            for cat in month.get("top_categories", []):
-                trend_str += f"  - {cat}\n"
+            trend_str += f"- {month['month']}: ${month['total_spent']}\n"
+            for cat in month.get("top_categories", [])[:2]:
+                trend_str += f"  • {cat}\n"
         
         return trend_str
-
+    
     async def _get_top_merchants(self, db: AsyncSession, user_id: str, start_date: date, end_date: date) -> List[Dict]:
         """Get top merchants by spending amount and frequency"""
         result = await db.execute(

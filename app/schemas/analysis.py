@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from decimal import Decimal
 from typing import List
 from datetime import datetime
@@ -27,8 +27,3 @@ class FinancialInsights(BaseModel):
     spending_analysis: SpendingAnalysis
     recommendations: List[Recommendation]
     generated_at: datetime
-
-# Natural language analysis request
-class AnalysisRequest(BaseModel):
-    user_id: str
-    query: str = Field(..., description="Natural language: 'show my spending analysis for last week' or 'give recommendations for this month'")

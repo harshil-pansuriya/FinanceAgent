@@ -34,7 +34,8 @@ export const useAuth = () => {
             return response.data;
         } 
         catch (err) {
-            setError(err.response?.data?.message || 'Login failed');
+            // Show a clean, user-friendly message for login failures
+            setError('Login failed try again');
             throw err;
         }
         finally{

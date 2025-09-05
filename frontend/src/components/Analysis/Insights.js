@@ -43,21 +43,20 @@ const Insights = ({ refreshTrigger }) => {
             switch (selectedPeriod) {
                 case 'this month':
                     return transactionDate.getMonth() === now.getMonth() && 
-                           transactionDate.getFullYear() === now.getFullYear();
+                        transactionDate.getFullYear() === now.getFullYear();
                 
                 case 'last month':
                     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
                     return transactionDate.getMonth() === lastMonth.getMonth() && 
-                           transactionDate.getFullYear() === lastMonth.getFullYear();
+                            transactionDate.getFullYear() === lastMonth.getFullYear();
                 
-                case 'last 3 months':
-                    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-                    const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                    return transactionDate >= threeMonthsAgo && transactionDate <= endOfCurrentMonth;
+                case 'all time':
+                    // Include all transactions for all time period
+                    return true;
                 
                 default:
                     return transactionDate.getMonth() === now.getMonth() && 
-                           transactionDate.getFullYear() === now.getFullYear();
+                            transactionDate.getFullYear() === now.getFullYear();
             }
         });
 
@@ -75,10 +74,21 @@ const Insights = ({ refreshTrigger }) => {
 
         // Calculate period-appropriate income
         let totalIncome = monthlyIncome;
-        if (selectedPeriod === 'last 3 months') {
-            totalIncome = monthlyIncome * 3; // 3 months of income
+        
+        if (selectedPeriod === 'all time') {
+            // For all time, calculate total income from user creation to current month
+            const userCreatedAt = new Date(userResponse.data.created_at);
+            const userCreationMonth = new Date(userCreatedAt.getFullYear(), userCreatedAt.getMonth(), 1);
+            const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            // Calculate number of months from creation to current month (inclusive)
+            const monthsDiff = (currentMonth.getFullYear() - userCreationMonth.getFullYear()) * 12 + 
+                              (currentMonth.getMonth() - userCreationMonth.getMonth()) + 1;
+            
+            totalIncome = monthlyIncome * monthsDiff;
         }
         // For 'this month' and 'last month', use monthly income as is
+        
         const netBalance = totalIncome - totalExpenses;
         
         // Group by category
@@ -162,7 +172,7 @@ const Insights = ({ refreshTrigger }) => {
             switch (selectedPeriod) {
                 case 'this month': return 'this month';
                 case 'last month': return 'last month';
-                case 'last 3 months': return 'the last 3 months';
+                case 'all time': return 'all time';
                 default: return 'this period';
             }
         };
@@ -181,7 +191,7 @@ const Insights = ({ refreshTrigger }) => {
                         >
                             <option value="this month">This Month</option>
                             <option value="last month">Last Month</option>
-                            <option value="last 3 months">Last 3 Months</option>
+                            <option value="all time">All Time</option>
                         </select>
                         <button onClick={fetchInsights} className="refresh-button-small">
                             🔄 Refresh
@@ -212,7 +222,7 @@ const Insights = ({ refreshTrigger }) => {
                     >
                         <option value="this month">This Month</option>
                         <option value="last month">Last Month</option>
-                        <option value="last 3 months">Last 3 Months</option>
+                        <option value="all time">All Time</option>
                     </select>
                     <button onClick={fetchInsights} className="refresh-button-small">
                         🔄 Refresh
@@ -339,7 +349,7 @@ const Insights = ({ refreshTrigger }) => {
                 <div className="recommendations-section-small">
                     <h5 className="section-title-small">💡 Recommendations</h5>
                     <div className="recommendations-list-small">
-                        {insights.recommendations.slice(0, 3).map((rec, index) => (
+                        {insights.recommendations.map((rec, index) => (
                             <div key={index} className="recommendation-card-small">
                                 <div className="recommendation-header-small">
                                     <span className="recommendation-icon-small">💡</span>

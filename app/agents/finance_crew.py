@@ -1,7 +1,6 @@
 from crewai import Agent, Task, Crew, Process
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
-from langchain.output_parsers import PydanticOutputParser
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
 from decimal import Decimal
@@ -108,7 +107,7 @@ class FinanceCrew:
                     categories=categories,
                     parsed_data=parse_task.output
                 ),
-                agent=self.transaction_agent,
+                agent=self.categorizer_agent,
                 expected_output="Complete JSON with amount, merchant, transaction_date, and category",
                 context=[parse_task]  # Sequential dependency
             )

@@ -27,6 +27,19 @@ class TransactionService:
             if not parsed_data:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to parse transaction")
 
+            # transactions cannot be dated before the user's signup month
+            user = await self.user_service.get_user_by_id(db, input_data.user_id)
+            if not user:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            created_date = user.created_at.date() if hasattr(user.created_at, 'date') else user.created_at
+            first_allowed_date = date(created_date.year, created_date.month, 1)
+            if parsed_data.transaction_date < first_allowed_date:
+                blocked_month = first_allowed_date.strftime('%B %Y')
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Transactions before {blocked_month} are not allowed"
+                )
+
             new_transaction = Transaction(
                 user_id=input_data.user_id,
                 amount=parsed_data.amount,

@@ -5,7 +5,7 @@ from typing import Dict, List
 from schemas.user import UserRegister, UserLogin, UserResponse, UserPreferences
 from schemas.transaction import NaturalLanguageInput, TransactionResponse, TransactionSearch
 from schemas.analysis import FinancialInsights
-from database.database import get_db
+from database.database import get_db 
 from services.user_service import UserService
 from services.transaction_service import TransactionService
 from services.analysis import AnalysisService
@@ -31,6 +31,7 @@ async def login_user(login_data: UserLogin, db: AsyncSession = Depends(get_db)) 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user_id")
     return result
 
+"""
 @router.post("/preferences", response_model= UserPreferences)
 async def update_preferences(user_id: str, preferences_data: Dict, db: AsyncSession = Depends(get_db)):
     try:
@@ -38,7 +39,8 @@ async def update_preferences(user_id: str, preferences_data: Dict, db: AsyncSess
         return result
     except Exception as e:
         raise HTTPException(status_code= status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    
+"""    
+
 @router.get("/user/{user_id}", response_model= UserResponse)
 async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
     user= await user_service.get_user_by_id(db, user_id)
@@ -78,4 +80,10 @@ async def search_transactions(user_id: str, query: str, db: AsyncSession = Depen
 @router.get("/insights/{user_id}", response_model= FinancialInsights)
 async def get_financial_insights(user_id: str, period: str = "this month", db: AsyncSession = Depends(get_db)):
 
+    valid_periods = ["this month", "last month", "all time"]
+    if period not in valid_periods:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Invalid period. Must be one of: {', '.join(valid_periods)}"
+        )
     return await analysis_service.get_financial_insights(db, user_id, period)

@@ -1,9 +1,10 @@
 // Utility functions for formatting and validation
 
 export const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
+    // Format currency in USD with $ symbol for a consistent experience
+    return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(amount || 0);
@@ -42,22 +43,7 @@ export const formatDate = (dateString) => {
 
 
 
-export const getCategoryColor = (category) => {
-    const colors = {
-        'food': '#FF6B6B',
-        'transport': '#4ECDC4',
-        'entertainment': '#45B7D1',
-        'shopping': '#96CEB4',
-        'utilities': '#FFEAA7',
-        'healthcare': '#DDA0DD',
-        'education': '#98D8C8',
-        'salary': '#F7DC6F',
-        'freelance': '#BB8FCE',
-        'investment': '#85C1E9',
-        'other': '#D5DBDB'
-    };
-    return colors[category.toLowerCase()] || colors.other;
-};
+// removed unused getCategoryColor
 
 export const getCategoryIcon = (category) => {
     const icons = {

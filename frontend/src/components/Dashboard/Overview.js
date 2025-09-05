@@ -15,7 +15,9 @@ const Overview = ({ refreshTrigger, onNavigateToInsights }) => {
         totalIncome: 0,
         totalExpenses: 0,
         netBalance: 0,
-        savingsProgress: 0
+        savingsProgress: 0,
+        savedLastMonth: 0,
+        savedToDate: 0,
     });
 
     const fetchOverviewData = useCallback(async () => {
@@ -60,7 +62,9 @@ const Overview = ({ refreshTrigger, onNavigateToInsights }) => {
                 totalIncome: 0,
                 totalExpenses: 0,
                 netBalance: 0,
-                savingsProgress: 0
+                savingsProgress: 0,
+                savedLastMonth: 0,
+                savedToDate: 0,
             });
             return;
         }
@@ -73,41 +77,110 @@ const Overview = ({ refreshTrigger, onNavigateToInsights }) => {
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
         
+        // Helper to robustly parse YYYY-MM-DD without timezone issues
+        const getYearMonth = (value) => {
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+                const [y, m] = value.split('-');
+                return { year: parseInt(y, 10), month: parseInt(m, 10) - 1 };
+            }
+            const d = new Date(value);
+            return { year: d.getFullYear(), month: d.getMonth() };
+        };
+
         // Filter transactions for current month only
-        const currentMonthTransactions = transactionData.filter(transaction => {
-            const transactionDate = new Date(transaction.transaction_date);
-            return transactionDate.getMonth() === currentMonth && 
-                   transactionDate.getFullYear() === currentYear;
+        const currentMonthTransactions = transactionData.filter(t => {
+            const { year, month } = getYearMonth(t.transaction_date);
+            return month === currentMonth && year === currentYear;
+        });
+
+        // Filter transactions for last month
+        const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
+        const lastMonth = lastMonthDate.getMonth();
+        const lastMonthYear = lastMonthDate.getFullYear();
+        const lastMonthTransactions = transactionData.filter(t => {
+            const { year, month } = getYearMonth(t.transaction_date);
+            return month === lastMonth && year === lastMonthYear;
         });
         
-        // Calculate total expenses from current month transactions only
+        // Calculate total expenses for current month
         const totalExpenses = currentMonthTransactions.reduce((sum, transaction) => {
             const amount = parseFloat(transaction.amount);
             if (!isNaN(amount)) {
-                return sum + amount; // This includes both positive and negative amounts
+                return sum + Math.abs(amount); // Sum absolute values of all transactions
             }
             return sum;
         }, 0);
-
-        // Since expenses are stored as negative values, totalExpenses will be negative
-        // We need the absolute value for display
-        const absoluteExpenses = Math.abs(totalExpenses);
-        
+        const absoluteExpenses = totalExpenses;
         const totalIncome = monthlyIncome;
         const netBalance = totalIncome - absoluteExpenses;
-        
-        // Calculate savings progress if user data is available
+
+        // Last month net balance (saved amount): monthly income - total expenses of last month
+        const lastMonthExpensesAbs = lastMonthTransactions.reduce((sum, t) => {
+            const amount = parseFloat(t.amount);
+            // Sum absolute values of all transactions (expenses are stored as positive amounts)
+            return isNaN(amount) ? sum : sum + Math.abs(amount);
+        }, 0);
+        const savedLastMonth = Math.max(0, monthlyIncome - lastMonthExpensesAbs);
+
+        // Calculate savings progress if user data is available 
         let savingsProgress = 0;
         if (userData && userData.target_amount) {
             const targetAmount = parseFloat(userData.target_amount);
             savingsProgress = targetAmount > 0 ? (netBalance / targetAmount) * 100 : 0;
         }
 
+        // Calculate cumulative savings to date (INCLUDE creation month, EXCLUDE current month)
+        const computeSavedToDate = () => {
+            if (!userData?.created_at) return 0;
+
+            // Aggregate monthly expenses by year-month
+            const expensesByYearMonth = new Map();
+            for (const t of transactionData) {
+                const { year, month } = getYearMonth(t.transaction_date);
+                const amount = parseFloat(t.amount);
+                if (!isNaN(amount)) {
+                    const key = `${year}-${month}`; // month is 0-11
+                    expensesByYearMonth.set(key, (expensesByYearMonth.get(key) || 0) + Math.abs(amount));
+                }
+            }
+
+            // Month range: from creation month through last complete month (exclude current)
+            const createdDate = new Date(userData.created_at);
+            const startYear = createdDate.getFullYear();
+            const startMonth = createdDate.getMonth(); // 0-11
+
+            let endYear = currentYear;
+            let endMonth = currentMonth - 1; // last complete month
+            if (endMonth < 0) { endMonth = 11; endYear -= 1; }
+
+            // No complete months to include
+            if (endYear < startYear || (endYear === startYear && endMonth < startMonth)) return 0;
+
+            let totalSavings = 0;
+            let y = startYear, m = startMonth;
+            while (y < endYear || (y === endYear && m <= endMonth)) {
+                const key = `${y}-${m}`;
+                // Calculate savings for this month: Monthly Income - Expenses
+                const monthlyExpenses = expensesByYearMonth.get(key) || 0;
+                const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
+                totalSavings += monthlySavings;
+
+                // advance to next month
+                m += 1;
+                if (m > 11) { m = 0; y += 1; }
+            }
+            return totalSavings;
+        };
+
+        const savedToDate = computeSavedToDate();
+
         setFinancialSummary({
             totalIncome,
             totalExpenses: absoluteExpenses,
             netBalance,
-            savingsProgress: Math.max(0, Math.min(100, savingsProgress))
+            savingsProgress: Math.max(0, Math.min(100, savingsProgress)),
+            savedLastMonth: savedLastMonth,
+            savedToDate,
         });
     };
 
@@ -154,7 +227,7 @@ const Overview = ({ refreshTrigger, onNavigateToInsights }) => {
                         <div className="card-trend">
                             <span className="trend-icon">📊</span>
                             <span className="trend-text">
-                                Target: {formatCurrency(userData.monthly_income)}
+                                Target: {formatCurrency(userData.target_amount)}
                             </span>
                         </div>
                     )}
@@ -239,6 +312,24 @@ const Overview = ({ refreshTrigger, onNavigateToInsights }) => {
                         </div>
                     </div>
                 )}
+
+                {/* Saved To Date Card */}
+                <div className="dashboard-card">
+                    <div className="card-header">
+                        <div className="card-icon">💾</div>
+                        <h3 className="card-title">Savings Balance</h3>
+                    </div>
+                    <div className="card-value positive">
+                        {formatCurrency(financialSummary.savedToDate)}
+                    </div>
+                    <p className="card-description">Cumulative Savings</p>
+                    <div className="card-trend">
+                        <span className="trend-icon">📊</span>
+                        <span className="trend-text">
+                            Savings Overview
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {/* Target Date Information */}

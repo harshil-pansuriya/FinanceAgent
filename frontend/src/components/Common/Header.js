@@ -15,7 +15,7 @@ const Header = () => {
         <header className="header">
             <div className="header-container">
                 <div className="header-left">
-                    <h1 className="header-title">Personal Finance Agent</h1>
+                    <h1 className="header-title">GoalNest</h1>
                 </div>
         
                 <div className="header-right"> 
@@ -26,19 +26,11 @@ const Header = () => {
                                 <span className="user-avatar">{user?.user_id?.charAt(0)?.toUpperCase() || 'U'}</span>
                             </button>
                             <div className="user-dropdown">
-                                <button className="dropdown-item">
-                                    <span className="dropdown-icon">👤</span>
-                                    Profile
-                                </button>
-                                <button className="dropdown-item">
-                                    <span className="dropdown-icon">⚙️</span>
-                                    Settings
-                                </button>
                                 <button 
                                     className="dropdown-item logout-btn" 
                                     onClick={handleLogout}
                                 >
-                                    <span className="dropdown-icon">🚪</span>
+                                    
                                     Logout
                                 </button>
                             </div>
