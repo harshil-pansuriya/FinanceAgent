@@ -59,6 +59,3 @@ coverage.xml
 # files
 env/
 1.txt
-
-# folders
-prompts
