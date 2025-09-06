@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import text
 from config.setting import Config
 from config.logger import logger
 import sqlalchemy.exc
-import ssl
 
 engine = create_async_engine(
     Config.database_url,
@@ -13,7 +13,11 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=1800,
     echo=False,
-    connect_args={"ssl": ssl.create_default_context()}
+    connect_args={
+        "server_settings": {
+            "search_path": "public"
+        }
+    }
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -38,15 +42,8 @@ async def get_db():
 async def init_db():
     try:
         async with engine.begin() as conn:
-            # Check if tables exist before creating
-            existing_tables = await conn.run_sync(
-                lambda sync_conn: sync_conn.dialect.get_table_names(sync_conn)
-            )
-            if not all(table in existing_tables for table in ['users', 'transactions', 'user_preferences']):
-                await conn.run_sync(Base.metadata.create_all)
-                logger.info("Database tables created successfully")
-            else:
-                logger.info("Database tables already exist")
+            await conn.execute(text("SELECT 1"))
+            logger.info("Database connection successful")
     except sqlalchemy.exc.OperationalError as e:
         logger.error(f"Database connection error during init: {e}")
         raise
