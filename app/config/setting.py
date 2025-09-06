@@ -3,7 +3,6 @@ class Settings(BaseSettings):
     
     groq_api_key: str
     database_url: str
-    port: int= 8080
     
     model_config= SettingsConfigDict(
         env_file=".env",

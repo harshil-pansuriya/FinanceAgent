@@ -3,6 +3,7 @@ from sqlalchemy.orm import declarative_base
 from config.setting import Config
 from config.logger import logger
 import sqlalchemy.exc
+import ssl
 
 engine = create_async_engine(
     Config.database_url,
@@ -12,6 +13,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=1800,
     echo=False,
+    connect_args={"ssl": ssl.create_default_context()}
 )
 
 AsyncSessionLocal = async_sessionmaker(

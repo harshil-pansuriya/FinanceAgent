@@ -6,7 +6,6 @@ from typing import Dict, Any,  AsyncContextManager
 from database.database import init_db, dispose_engine
 from routes.api_endpoints import router
 from config.logger import logger
-from config.setting import Config
 
 async def lifespan(app: FastAPI) -> AsyncContextManager:
     
@@ -34,13 +33,15 @@ app.include_router(router)
 async def root() -> Dict[str,Any]:
     return {"message": "AI Personal Finance Agent is running"}
 
+port = int(os.environ.get("PORT", 10000))
+
 if __name__ == "__main__":
     logger.info("Finance Agent FastAPI server...")
     
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=Config.port,
+        port=port,
         reload=False,
         # log_level="info"
     )
