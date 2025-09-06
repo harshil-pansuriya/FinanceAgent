@@ -10,27 +10,15 @@ python-multipart
 pydantic
 pydantic-settings
 
-openai
 langchain
 langchain-groq
-langchain-community
-langchain-google-genai
 crewai
-sentence-transformers
-
-pandas
-numpy
-scikit-learn
-nltk
-spacy
 
 httpx
 requests
 aiohttp
-
 python-dotenv
 pyyaml
-
 pytest
 pytest-asyncio
 httpx
